@@ -12,6 +12,7 @@
     "vite": "^4.4.5"
   },
   "dependencies": {
+    "3d-tiles-renderer": "^0.3.31",
     "three": "^0.155.0"
   }
 }
