@@ -1,11 +1,10 @@
 import '../my-vite-threejs-app/style.css';
 import * as THREE from 'three';
 import { DragControls } from 'three/addons/controls/DragControls.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GoogleTilesRenderer } from '3d-tiles-renderer';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-
-
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -33,11 +32,16 @@ googleTilesRenderer.setCamera(camera);
 googleTilesRenderer.setResolutionFromRenderer( camera, renderer );
 scene.add(googleTilesRenderer.group);
 
+const controls = new OrbitControls( camera, renderer.domElement );
+camera.position.set( 0, 20, 100 );
+controls.update();
+
 function animate() {
   requestAnimationFrame(animate);
   camera.updateMatrixWorld();
   googleTilesRenderer.update();
   renderer.render(scene, camera);
+  controls.update();
 }
 
 animate();
