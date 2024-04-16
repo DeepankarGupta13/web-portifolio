@@ -2,8 +2,12 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { TransformControls } from './RotationControls';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
+
 // Set up scene
 const scene = new THREE.Scene();
+scene.rotateX = Math.PI / 2;
 const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
 const skyMaterial = new THREE.MeshBasicMaterial({
   color: 0xADD8E6, // Replace with your sky texture
@@ -22,7 +26,10 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
+// const camera = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 1, 1000 );
+// camera.up.set(0, 0, 1);
 camera.position.z = 100;
+
 
 // Set up renderer
 const renderer = new THREE.WebGLRenderer();
@@ -89,6 +96,7 @@ plane3.userData.azimuth = Math.PI / 6
 
 // Add mesh to the scene
 // scene.add(boxMesh);
+
 scene.add(boxMesh2);
 // scene.add(boxmesh3);
 // scene.add(boxmesh4);
@@ -123,11 +131,6 @@ addDirectionalLights();
 // addPointLight();
 addAmbientLight();
 
-// Set up OrbitControls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
-controls.dampingFactor = 0.25;
-controls.screenSpacePanning = false;
 // controls.maxPolarAngle = Math.PI / 2;
 
 function addDirectionalLights() {
@@ -259,11 +262,17 @@ const onMove = (event) => {
   mousePoint.y = -(event.clientY / window.innerHeight) * 2 + 1;
   // update the picking ray with the camera and pointer position
 	raycaster.setFromCamera( mousePoint, camera );
+  console.log('mousePoint: ', mousePoint);
+
+  const group = (new THREE.Group().add(plane));
+  scene.add(group)
 
 	// calculate objects intersecting the picking ray
-	const intersects = raycaster.intersectObjects([plane]);
+	const intersects = raycaster.intersectObject(group, true);
+  console.log('intersects: ', intersects);
   if (intersects.length > 0) {
     intersectingPoint = intersects[0].point;
+    console.log('intersectingPoint: ', intersectingPoint);
     boxMesh2.position.set(intersectingPoint.x, intersectingPoint.y + 5, intersectingPoint.z);
     _alterMaterial();
     snappingUsingVectors(meshes)
@@ -462,7 +471,43 @@ const animate = () => {
   // Render the scene
   renderer.render(scene, camera);
 };
+// Set up OrbitControls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+controls.dampingFactor = 0.25;
+controls.screenSpacePanning = false;
 
+const control = new TransformControls(camera, renderer.domElement);
+control.addEventListener('change', animate);
+
+control.addEventListener('dragging-changed', function (event) {
+
+  controls.enabled = !event.value;
+
+});
+
+function saveArrayBuffer(buffer, filename) {
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click(); // This triggers the download
+}
+
+window.exportGLTF = () => {
+  const exporter = new GLTFExporter();
+  exporter.parse(
+      scene, // Your Three.js scene
+      function (result) {
+          saveArrayBuffer(result, 'ThreejsScene.glb');
+      },
+      { binary: true }
+  );
+}
+
+control.attach( boxMesh2 );
+scene.add( control );
+control.setMode( 'rotate' );
 // Start animation
 animate();
 
