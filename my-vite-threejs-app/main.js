@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { TransformControls } from './RotationControls';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
 // Set up scene
 const scene = new THREE.Scene();
@@ -486,6 +488,11 @@ control.addEventListener('dragging-changed', function (event) {
 
 });
 
+
+control.attach( boxMesh2 );
+scene.add( control );
+control.setMode( 'rotate' );
+
 function saveArrayBuffer(buffer, filename) {
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
   const link = document.createElement('a');
@@ -505,9 +512,51 @@ window.exportGLTF = () => {
   );
 }
 
-control.attach( boxMesh2 );
-scene.add( control );
-control.setMode( 'rotate' );
+window.loadMesh = () => {
+
+  // Instantiate a loader
+  const loader = new GLTFLoader();
+  // Optional: Provide a DRACOLoader instance to decode compressed mesh data
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('/examples/jsm/libs/draco/');
+  loader.setDRACOLoader(dracoLoader);
+
+  // Load a glTF resource
+  loader.load(
+    // resource URL
+    'http://localhost:8081/Gazebo5x8.gltf',
+    // called when the resource is loaded
+    function (gltf) {
+      console.log('gltf: ', gltf.scene.children[0]);
+      console.log('gltf: ', gltf);
+      const object = gltf.scene.children[0];
+
+      object.rotateX(- Math.PI / 2)
+      object.position.set(10, 0, 0)
+
+      scene.add(object);
+
+      gltf.animations; // Array<THREE.AnimationClip>
+      gltf.scene; // THREE.Group
+      gltf.scenes; // Array<THREE.Group>
+      gltf.cameras; // Array<THREE.Camera>
+      gltf.asset; // Object
+
+    },
+    // called while loading is progressing
+    function (xhr) {
+
+      console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+
+    },
+    // called when loading has errors
+    function (error) {
+
+      console.log('An error happened');
+
+    }
+  );
+}
 // Start animation
 animate();
 
