@@ -249,7 +249,7 @@ window.changeLambertMaterial = () => {
     emissive: 0x000000,
     opacity: 0.5,
     reflectivity: 0.7,
-    transparent: true,
+    transparent: false,
     envMap: THREE.CubeReflectionMapping,
   });
 }
@@ -264,17 +264,14 @@ const onMove = (event) => {
   mousePoint.y = -(event.clientY / window.innerHeight) * 2 + 1;
   // update the picking ray with the camera and pointer position
 	raycaster.setFromCamera( mousePoint, camera );
-  console.log('mousePoint: ', mousePoint);
 
   const group = (new THREE.Group().add(plane));
   scene.add(group)
 
 	// calculate objects intersecting the picking ray
 	const intersects = raycaster.intersectObject(group, true);
-  console.log('intersects: ', intersects);
   if (intersects.length > 0) {
     intersectingPoint = intersects[0].point;
-    console.log('intersectingPoint: ', intersectingPoint);
     boxMesh2.position.set(intersectingPoint.x, intersectingPoint.y + 5, intersectingPoint.z);
     _alterMaterial();
     snappingUsingVectors(meshes)
@@ -297,16 +294,10 @@ const moveBoxIfCloset = (mesh) => {
   const dx = box2.position.x - box1.position.x;
   const dy = box2.position.y - box1.position.y;
   const dz = box2.position.z - box1.position.z;
-  console.log('box1.position.z: ', box1.position.z);
-  console.log('box2.position.z: ', box2.position.z);
   const box1Scale = box1.scale
-  console.log('box1Scale: ', box1Scale);
   const box2Scale = box2.scale
 
   // console.log('dx*dx + dy*dy + dz*dz: ', dx*dx + dy*dy + dz*dz);
-  console.log('dz: ', dz);
-  console.log('dy: ', dy);
-  console.log('dx: ', dx);
   if ((dx*dx + dy*dy + dz*dz) > 100){
   //   // console.log('100: ');
     return false;
@@ -328,76 +319,106 @@ const moveBoxIfCloset = (mesh) => {
 let roationDiff = new THREE.Quaternion();
 
 const snappingUsingVectors = (ele) => {
-  const distances = []
-  const box2 = boxMesh2;
-  for (let i = 0; i < ele.length; i++) {
+  // Array to hold the distances between each mesh and the boxMesh2
+  const distances = [];
+  const box2 = boxMesh2;  // The box mesh that will be snapped
 
+  // Iterate over each mesh in the 'ele' array
+  for (let i = 0; i < ele.length; i++) {
+    
+    // setting every plane to green
     ele[i].material = new THREE.MeshBasicMaterial({
       color: 0x00ff00,
       side: THREE.DoubleSide,
-    })
+    });
   
-    // Get the plane normal and constant from the mesh
+    // normal of each plane
     const normalgg = new THREE.Vector3(
       ele[i].geometry.attributes.normal.array[0],
       ele[i].geometry.attributes.normal.array[1],
       ele[i].geometry.attributes.normal.array[2]
     ).applyQuaternion(ele[i].quaternion).normalize();
   
+    // Create a plane using the calculated normal and the position of the mesh (this is not a plane mesh this is 3d mathematical plane)
     const planeGG = new THREE.Plane().setFromNormalAndCoplanarPoint(normalgg, ele[i].position);
   
+    // Calculate the distance from the box2's position to the plane
     const distancegg = planeGG.distanceToPoint(box2.position);
-    distances.push([ele[i], Math.abs(distancegg)])
+    distances.push([ele[i], Math.abs(distancegg)]);  // Store the mesh and its distance
   }
 
-  distances.sort((a, b) => a[1] - b[1])
+  // Sort the meshes based on their distance to the box2, in ascending order
+  distances.sort((a, b) => a[1] - b[1]);
 
-  const mesh = distances[0][0]
-  const distancegg = distances[0][1]
+  // Get the closest mesh and its distance
+  const mesh = distances[0][0];
+  const distancegg = distances[0][1];
 
+  // Check if the distance is within a small threshold to determine if snapping should occur
   if (distancegg - box2.geometry.parameters.width < 0.001) {
+    
+    // Change the material of the closest mesh to yellow to indicate snapping
     mesh.material = new THREE.MeshBasicMaterial({
       color: 0xffff00,
       side: THREE.DoubleSide,
-    })
+    });
 
+    // Get the normal vector of the closest plane mesh
     const normal = new THREE.Vector3(
       mesh.geometry.attributes.normal.array[0],
       mesh.geometry.attributes.normal.array[1],
       mesh.geometry.attributes.normal.array[2]
     ).applyQuaternion(mesh.quaternion).normalize();
 
+    // Create a plane using this normal and the mesh's position
     const MathPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, mesh.position);
-    const distance = MathPlane.distanceToPoint(box2.position);
-    let finalDelta = new THREE.Vector3();
-    let deltaVector = new THREE.Vector3();
-    const mouseDeltaVector = new THREE.Vector3();
 
+    // Calculate the distance from the box2's position to this plane
+    const distance = MathPlane.distanceToPoint(box2.position);
+    
+    let finalDelta = new THREE.Vector3();  // Final displacement to be applied to box2
+    let deltaVector = new THREE.Vector3(); // Temporary vector for calculations
+    const mouseDeltaVector = new THREE.Vector3(); // Vector representing mouse movement delta
+
+    // Determine the vector along the plane's normal direction
     const vecAlongPlane = Math.sign(distance) > 0 ? MathPlane.normal.clone() : MathPlane.normal.clone().negate();
+    
+    // Scale the vector along the plane by the mesh's width
     vecAlongPlane.multiplyScalar(mesh.geometry.parameters.width);
-    const displacement = normal.clone().normalize().multiplyScalar(box2.geometry.parameters.width / 2)
+    
+    // Calculate the displacement along the normal direction
+    const displacement = normal.clone().normalize().multiplyScalar(box2.geometry.parameters.width / 2);
+    
+    // Calculate the delta vector by subtracting the intersection point from the mesh's position
     mouseDeltaVector.subVectors(mesh.position.clone(), intersectingPoint);
     deltaVector = (vecAlongPlane.dot(mouseDeltaVector)) / vecAlongPlane.length();
+
+    // Apply the calculated delta vector to determine the final position adjustment
     finalDelta = vecAlongPlane.clone().normalize().multiplyScalar(deltaVector);
-    finalDelta.add(displacement)
+    finalDelta.add(displacement);
+    
+    // Adjust the position of box2 based on the calculated displacement
     box2.position.x += finalDelta.x;
     box2.position.z += finalDelta.z;
 
+    // If the azimuth (rotation angle) of box2 differs from the mesh's azimuth, adjust the rotation
     if ((box2.userData.azimuth !== mesh.userData.azimuth)) {
-      box2.rotateY(-box2.userData.azimuth);
-      box2.rotateY(mesh.userData.azimuth);
-      box2.userData.azimuth = mesh.userData.azimuth;
+      box2.rotateY(-box2.userData.azimuth);  // Undo the current azimuth rotation
+      box2.rotateY(mesh.userData.azimuth);   // Apply the new azimuth rotation
+      box2.userData.azimuth = mesh.userData.azimuth;  // Update the azimuth value
     }
 
-    return true;
+    return true;  // Return true indicating snapping occurred
   }
 
+  // If snapping did not occur, reset the azimuth rotation to its default state
   if (box2.userData.azimuth !== Math.PI) {
     box2.rotateY(-box2.userData.azimuth);
     box2.userData.azimuth = Math.PI;
   }
-  return false;
-}
+
+  return false;  // Return false indicating no snapping occurred
+};
 
 const light = new THREE.PointLight(0Xffff00, 10000, 20);
 light.castShadow = true;
@@ -447,11 +468,6 @@ const addSphere = () => {
 }
 
 window.addMouseListnr = () => {
-  console.log("plane: ", plane)
-  console.log("plane1: ", plane1)
-  console.log("plane2: ", plane2)
-  console.log("plane3: ", plane3)
-
   document.addEventListener('mousemove', onMove, false);
   document.addEventListener('mousedown', mouseDown, false);
 }
@@ -468,7 +484,7 @@ let angle = 0;
 const animate = () => {
   requestAnimationFrame(animate);
 
-  sphere.position.set(20*Math.cos(angle+=0.001), 20*Math.sin(angle+=0.001), 0)
+  sphere.position.set(20*Math.cos(angle+=0.0001), 20*Math.sin(angle+=0.0001), 0)
 
   // Render the scene
   renderer.render(scene, camera);
